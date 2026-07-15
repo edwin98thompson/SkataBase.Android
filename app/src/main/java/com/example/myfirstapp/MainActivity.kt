@@ -2,31 +2,77 @@ package com.example.myfirstapp
 
 import android.Manifest
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import com.example.myfirstapp.repository.BluetoothRepository
 import com.example.myfirstapp.screens.BLEScannerScreen
+import com.example.myfirstapp.screens.OrientationScreen
 import com.example.myfirstapp.ui.theme.MyFirstAppTheme
+import com.example.myfirstapp.viewmodel.OrientationViewModel
+import com.example.myfirstapp.viewmodel.OrientationViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var bleManager: BLEManager
+    private lateinit var repository: BluetoothRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize BLEManager with application context
         bleManager = BLEManager(applicationContext)
+        repository = BluetoothRepository(bleManager)
 
-        // Ask for necessary permissions at runtime
         requestBluetoothPermissions()
 
         setContent {
+
+            val navController = rememberNavController()
+
             MyFirstAppTheme {
-                Surface(color = MaterialTheme.colorScheme.background) {
-                    BLEScannerScreen(bleManager = bleManager)
+
+                Surface(
+                    color = MaterialTheme.colorScheme.background
+                ) {
+
+                    NavHost(
+                        navController = navController,
+                        startDestination = "scanner"
+                    ) {
+
+                        composable("scanner") {
+
+                            BLEScannerScreen(
+                                bleManager = bleManager,
+                                onConnected = {
+
+                                    Log.d("NAV", "Navigating to orientation")
+
+                                    navController.navigate("orientation")
+                                }
+                            )
+                        }
+
+
+                        composable("orientation") {
+
+                            val orientationViewModel: OrientationViewModel =
+                                viewModel(
+                                    factory = OrientationViewModelFactory(repository)
+                                )
+
+                            OrientationScreen(
+                                viewModel = orientationViewModel
+                            )
+                        }
+                    }
                 }
             }
         }

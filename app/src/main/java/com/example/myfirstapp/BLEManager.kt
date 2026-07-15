@@ -12,6 +12,13 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import com.example.myfirstapp.model.BLEDevice
+import com.example.myfirstapp.model.Orientation
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class BLEManager(private val context: Context) {
 
@@ -36,12 +43,21 @@ class BLEManager(private val context: Context) {
     var isScanning = mutableStateOf(false)
         private set
 
+    private val SERVICE_UUID = java.util.UUID.fromString("12345678-1234-1234-1234-1234567890ab")
+    private val CHARACTERISTIC_UUID = java.util.UUID.fromString("abcd1234-ab12-cd34-ef56-abcdef123456")
+
     private val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val scanner: BluetoothLeScanner? get() = bluetoothAdapter.bluetoothLeScanner
     private var gatt: BluetoothGatt? = null
     private val handler = Handler(Looper.getMainLooper())
     private val scanResults = mutableMapOf<String, BLEDevice>()
+
+    private val _incomingMessages =
+        MutableStateFlow<IntArray?>(null)
+
+    val incomingMessages =
+        _incomingMessages.asStateFlow()
 
     private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
@@ -109,8 +125,48 @@ class BLEManager(private val context: Context) {
             }
         }
 
+        @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            // Handle services here if needed
+            val service = gatt.getService(SERVICE_UUID)
+            if (service != null) {
+                val characteristic = service.getCharacteristic(CHARACTERISTIC_UUID)
+                if (characteristic != null) {
+                    gatt.setCharacteristicNotification(characteristic, true)
+
+                    // Required to get notifications on some devices
+                    val descriptor = characteristic.getDescriptor(java.util.UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                    descriptor?.let {
+                        it.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        gatt.writeDescriptor(it)
+                    }
+
+                    Log.d("BLEManager", "Notification enabled on characteristic")
+                } else {
+                    listener.onError("Characteristic not found")
+                }
+            } else {
+                listener.onError("Service not found")
+            }
+        }
+
+        override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+            if (characteristic.uuid == CHARACTERISTIC_UUID) {
+                val data = characteristic.value
+
+                if (data.size >= 20) {
+                    val buffer = ByteBuffer.wrap(data)
+                    buffer.order(ByteOrder.LITTLE_ENDIAN)  // ESP32 sends in little-endian
+
+                    val values = IntArray(10) { buffer.short.toInt() }  // short = int16
+
+                    Log.d("BLEManager", "Received IMU data: ${values.joinToString(", ")}")
+
+                    _incomingMessages.value = values
+
+                } else {
+                    Log.e("BLEManager", "Invalid data length: ${data.size}")
+                }
+            }
         }
     }
 

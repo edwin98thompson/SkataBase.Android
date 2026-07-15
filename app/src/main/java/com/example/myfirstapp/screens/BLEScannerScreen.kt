@@ -10,9 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.myfirstapp.model.BLEDevice
 import com.example.myfirstapp.BLEManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
-fun BLEScannerScreen(bleManager: BLEManager) {
+fun BLEScannerScreen(bleManager: BLEManager, onConnected: () -> Unit) {
     var devices by remember { mutableStateOf<List<BLEDevice>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
@@ -25,6 +28,9 @@ fun BLEScannerScreen(bleManager: BLEManager) {
 
             override fun onConnected() {
                 connectionStatus = "Connected"
+                CoroutineScope(Dispatchers.Main).launch {
+                    onConnected()
+                }
             }
 
             override fun onDisconnected() {
@@ -38,6 +44,7 @@ fun BLEScannerScreen(bleManager: BLEManager) {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Spacer(modifier = Modifier.height(50.dp))
         Button(
             onClick = {
                 devices = emptyList()

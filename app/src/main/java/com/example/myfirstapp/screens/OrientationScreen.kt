@@ -16,7 +16,10 @@ fun OrientationScreen(
     viewModel: OrientationViewModel
 ) {
 
+    val connectionState by viewModel.connectionState.collectAsState()
     val orientation by viewModel.orientation.collectAsState(null)
+
+    Text("Connection State: ${connectionState.javaClass.simpleName}")
 
     Column(
         modifier = Modifier.fillMaxSize(),

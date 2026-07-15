@@ -13,6 +13,8 @@ class OrientationViewModel(
     repository: BluetoothRepository
 ) : ViewModel() {
 
+    val connectionState = repository.connectionState
+
     private val _orientation =
         MutableStateFlow(
             Orientation(

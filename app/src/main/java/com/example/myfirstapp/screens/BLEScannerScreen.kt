@@ -8,47 +8,40 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.myfirstapp.model.BLEDevice
-import com.example.myfirstapp.BLEManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.example.myfirstapp.model.ConnectionState
+import com.example.myfirstapp.viewmodel.ScannerViewModel
 
 @Composable
-fun BLEScannerScreen(bleManager: BLEManager, onConnected: () -> Unit) {
-    var devices by remember { mutableStateOf<List<BLEDevice>>(emptyList()) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var connectionStatus by remember { mutableStateOf<String?>(null) }
+fun BLEScannerScreen(
+    viewModel: ScannerViewModel,
+    onConnected: () -> Unit
+) {
 
-    LaunchedEffect(Unit) {
-        bleManager.setListener(object : BLEManager.BLEListener {
-            override fun onDeviceFound(device: BLEDevice) {
-                devices = devices.toMutableList().apply { add(device) }
-            }
+    val devices = viewModel.devices.collectAsState().value
 
-            override fun onConnected() {
-                connectionStatus = "Connected"
-                CoroutineScope(Dispatchers.Main).launch {
-                    onConnected()
-                }
-            }
+    // Observe the BLE connection state
+    val connectionState by viewModel.connectionState.collectAsState()
 
-            override fun onDisconnected() {
-                connectionStatus = "Disconnected"
-            }
+    val isScanning by viewModel.isScanning
 
-            override fun onError(message: String) {
-                errorMessage = message
-            }
-        })
+    // Navigate when the connection state changes
+    LaunchedEffect(connectionState) {
+        if (connectionState is ConnectionState.Connected) {
+            onConnected()
+        }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+
         Spacer(modifier = Modifier.height(50.dp))
+
         Button(
             onClick = {
-                devices = emptyList()
-                bleManager.startScan()
+                viewModel.startScan()
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -57,23 +50,40 @@ fun BLEScannerScreen(bleManager: BLEManager, onConnected: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (bleManager.isScanning.value) {
-            CircularProgressIndicator(modifier = Modifier.padding(vertical = 8.dp))
+        if (isScanning) {
+            CircularProgressIndicator()
         }
 
-        errorMessage?.let {
-            Text(text = it, color = MaterialTheme.colorScheme.error)
-        }
+        Spacer(modifier = Modifier.height(16.dp))
 
-        connectionStatus?.let {
-            Text(text = "Status: $it", color = MaterialTheme.colorScheme.primary)
-        }
+        Text(
+            text = when (connectionState) {
+
+                ConnectionState.Disconnected ->
+                    "Status: Disconnected"
+
+                ConnectionState.Connecting ->
+                    "Status: Connecting..."
+
+                ConnectionState.Connected ->
+                    "Status: Connected"
+
+                is ConnectionState.Error ->
+                    "Status: ${(connectionState as ConnectionState.Error).message}"
+            },
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn {
+
             items(devices) { device ->
-                BLEDeviceItem(device = device) {
-                    bleManager.connect(device.device)
+
+                BLEDeviceItem(device) {
+                    viewModel.connect(device.device)
                 }
+
                 HorizontalDivider()
             }
         }

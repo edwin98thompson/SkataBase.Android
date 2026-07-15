@@ -1,4 +1,4 @@
-package com.example.myfirstapp
+package com.example.myfirstapp.ble
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -12,34 +12,13 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import com.example.myfirstapp.model.BLEDevice
-import com.example.myfirstapp.model.Orientation
-import kotlinx.coroutines.flow.MutableSharedFlow
+import com.example.myfirstapp.model.ConnectionState
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 class BLEManager(private val context: Context) {
-
-    interface BLEListener {
-        fun onDeviceFound(device: BLEDevice)
-        fun onConnected()
-        fun onDisconnected()
-        fun onError(message: String)
-    }
-
-    private var listener: BLEListener = object : BLEListener {
-        override fun onDeviceFound(device: BLEDevice) {}
-        override fun onConnected() {}
-        override fun onDisconnected() {}
-        override fun onError(message: String) {}
-    }
-
-    fun setListener(newListener: BLEListener) {
-        listener = newListener
-    }
-
     var isScanning = mutableStateOf(false)
         private set
 
@@ -59,6 +38,20 @@ class BLEManager(private val context: Context) {
     val incomingMessages =
         _incomingMessages.asStateFlow()
 
+    private val _connectionState =
+        MutableStateFlow<ConnectionState>(
+            ConnectionState.Disconnected
+        )
+
+    val connectionState =
+        _connectionState.asStateFlow()
+
+    private val _devices =
+        MutableStateFlow<List<BLEDevice>>(emptyList())
+
+    val devices =
+        _devices.asStateFlow()
+
     private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -67,13 +60,13 @@ class BLEManager(private val context: Context) {
             if (!scanResults.containsKey(address)) {
                 val bleDevice = BLEDevice(device.name, address, device)
                 scanResults[address] = bleDevice
-                listener.onDeviceFound(bleDevice)
+                _devices.value = scanResults.values.toList()
             }
         }
 
         override fun onScanFailed(errorCode: Int) {
             isScanning.value = false
-            listener.onError("Scan failed with code $errorCode")
+            _connectionState.value = ConnectionState.Error("Scan failed with code $errorCode")
         }
     }
 
@@ -100,6 +93,7 @@ class BLEManager(private val context: Context) {
         }
     }
 
+    @SuppressLint("MissingPermission")
     fun stopScan() {
         scanner?.stopScan(scanCallback)
         isScanning.value = false
@@ -108,6 +102,7 @@ class BLEManager(private val context: Context) {
 
     fun connect(device: BluetoothDevice) {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            _connectionState.value = ConnectionState.Connecting
             gatt = device.connectGatt(context, false, gattCallback)
         }
     }
@@ -119,9 +114,9 @@ class BLEManager(private val context: Context) {
             ) {
                 this@BLEManager.gatt = gatt
                 gatt.discoverServices()
-                listener.onConnected()
+                _connectionState.value = ConnectionState.Connected
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                listener.onDisconnected()
+                _connectionState.value = ConnectionState.Disconnected
             }
         }
 
@@ -142,13 +137,15 @@ class BLEManager(private val context: Context) {
 
                     Log.d("BLEManager", "Notification enabled on characteristic")
                 } else {
-                    listener.onError("Characteristic not found")
+                    _connectionState.value = ConnectionState.Error("Characteristic not found")
+
                 }
             } else {
-                listener.onError("Service not found")
+                _connectionState.value = ConnectionState.Error("Service not found")
             }
         }
 
+        @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             if (characteristic.uuid == CHARACTERISTIC_UUID) {
                 val data = characteristic.value
@@ -174,6 +171,7 @@ class BLEManager(private val context: Context) {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
             gatt?.close()
             gatt = null
+            _connectionState.value = ConnectionState.Disconnected
         }
     }
 }

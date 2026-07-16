@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.text.contains
 
 class BLEManager(private val context: Context) {
     var isScanning = mutableStateOf(false)
@@ -57,10 +58,21 @@ class BLEManager(private val context: Context) {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device
             val address = device.address
-            if (!scanResults.containsKey(address)) {
-                val bleDevice = BLEDevice(device.name, address, device)
-                scanResults[address] = bleDevice
-                _devices.value = scanResults.values.toList()
+
+            // Get the name, defaulting to "Unknown" if null
+            val deviceName = device.name ?: "Unknown"
+
+            // 2. Check if the name contains your specific string (case-insensitive)
+            if (deviceName.contains("skate", ignoreCase = true)) {
+                if (!scanResults.containsKey(address)) {
+                    Log.d("BLEManager", "Found matching device: $deviceName ($address)")
+
+                    val bleDevice = BLEDevice(deviceName, address, device)
+                    scanResults[address] = bleDevice
+
+                    // Update the StateFlow list for the UI
+                    _devices.value = scanResults.values.toList()
+                }
             }
         }
 

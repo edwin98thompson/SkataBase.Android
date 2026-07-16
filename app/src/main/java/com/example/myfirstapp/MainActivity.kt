@@ -1,19 +1,24 @@
 package com.example.myfirstapp
 
 import android.Manifest
-import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.*
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.myfirstapp.ble.BLEManager
 import com.example.myfirstapp.repository.BluetoothRepository
 import com.example.myfirstapp.screens.BLEScannerScreen
@@ -28,62 +33,83 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var bleManager: BLEManager
     private lateinit var repository: BluetoothRepository
-    private lateinit var scannerViewModel: ScannerViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize core logic
         bleManager = BLEManager(applicationContext)
         repository = BluetoothRepository(bleManager)
-        scannerViewModel = ScannerViewModel(repository)
-
 
         requestBluetoothPermissions()
 
         setContent {
-
-            val navController = rememberNavController()
-
             MyFirstAppTheme {
+                val navController = rememberNavController()
 
-                Surface(
-                    color = MaterialTheme.colorScheme.background
-                ) {
+                // Define the tabs
+                val items = listOf(
+                    Screen.Scanner,
+                    Screen.Orientation
+                )
 
-                    NavHost(
-                        navController = navController,
-                        startDestination = "scanner"
+                Scaffold(
+                    bottomBar = {
+                        NavigationBar {
+                            val navBackStackEntry by navController.currentBackStackEntryAsState()
+                            val currentDestination = navBackStackEntry?.destination
+
+                            items.forEach { screen ->
+                                NavigationBarItem(
+                                    icon = { Icon(screen.icon, contentDescription = null) },
+                                    label = { Text(screen.label) },
+                                    selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                                    onClick = {
+                                        navController.navigate(screen.route) {
+                                            // Pop up to the start destination of the graph to
+                                            // avoid building up a large stack of destinations
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            // Avoid multiple copies of the same destination when
+                                            // reselecting the same item
+                                            launchSingleTop = true
+                                            // Restore state when reselecting a previously selected item
+                                            restoreState = true
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                ) { innerPadding ->
+                    Surface(
+                        modifier = Modifier.padding(innerPadding),
+                        color = MaterialTheme.colorScheme.background
                     ) {
-
-                        composable("scanner") {
-
-                            val scannerViewModel: ScannerViewModel =
-                                viewModel(
+                        NavHost(
+                            navController = navController,
+                            startDestination = Screen.Scanner.route
+                        ) {
+                            composable(Screen.Scanner.route) {
+                                val scannerViewModel: ScannerViewModel = viewModel(
                                     factory = ScannerViewModelFactory(repository)
                                 )
+                                BLEScannerScreen(
+                                    viewModel = scannerViewModel,
+                                    onConnected = {
+                                        // Automatically switch to orientation tab on connect
+//                                        navController.navigate(Screen.Orientation.route)
+                                    }
+                                )
+                            }
 
-                            BLEScannerScreen(
-                                viewModel = scannerViewModel,
-                                onConnected = {
-
-                                    Log.d("NAV", "Navigating to orientation")
-
-                                    navController.navigate("orientation")
-                                }
-                            )
-                        }
-
-
-                        composable("orientation") {
-
-                            val orientationViewModel: OrientationViewModel =
-                                viewModel(
+                            composable(Screen.Orientation.route) {
+                                val orientationViewModel: OrientationViewModel = viewModel(
                                     factory = OrientationViewModelFactory(repository)
                                 )
-
-                            OrientationScreen(
-                                viewModel = orientationViewModel
-                            )
+                                OrientationScreen(viewModel = orientationViewModel)
+                            }
                         }
                     }
                 }
@@ -91,33 +117,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
     private fun requestBluetoothPermissions() {
-        val permissions = mutableListOf(
+        val permissions = arrayOf(
             Manifest.permission.BLUETOOTH_SCAN,
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.ACCESS_FINE_LOCATION
         )
-
-        // Optional but sometimes required on older Android versions
-
         val permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
-        ) { result ->
-            val allGranted = result.values.all { it }
-//            if (!allGranted) {
-//                // You can handle permission denial more gracefully here
-//                bleManager.setListener(object : BLEManager.BLEListener {
-//                    override fun onDeviceFound(device: com.example.myfirstapp.model.BLEDevice) {}
-//                    override fun onConnected() {}
-//                    override fun onDisconnected() {}
-//                    override fun onError(message: String) {
-//                        // Optional: handle error display in UI if needed
-//                    }
-//                })
-//            }
-        }
-
-        permissionLauncher.launch(permissions.toTypedArray())
+        ) { _ -> }
+        permissionLauncher.launch(permissions)
     }
+}
+
+// Helper class to manage screen routes and icons
+sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    object Scanner : Screen("scanner", "Scanner", Icons.Default.List)
+    object Orientation : Screen("orientation", "Orientation", Icons.Default.Place)
 }

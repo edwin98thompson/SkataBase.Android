@@ -6,7 +6,6 @@ import com.example.myfirstapp.model.Orientation
 import com.example.myfirstapp.repository.BluetoothRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class OrientationViewModel(

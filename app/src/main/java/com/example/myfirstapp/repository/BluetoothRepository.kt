@@ -39,9 +39,21 @@ class BluetoothRepository(
 
     private fun parseOrientation(message: IntArray): Orientation {
         return Orientation(
-            roll = message[0],
-            pitch = message[1],
-            yaw = message[2]
+            roll = message[0] / 100f,
+            pitch = message[1] / 100f,
+            yaw = normalizeYaw(message[2] / 100f),
+            q0 = message[3] / 10000f,
+            q1 = message[4] / 10000f,
+            q2 = message[5] / 10000f,
+            q3 = message[6] / 10000f
         )
+    }
+
+    private fun normalizeYaw(yaw: Float): Float {
+        return when {
+            yaw > 180f -> yaw - 360f
+            yaw < -180f -> yaw + 360f
+            else -> yaw
+        }
     }
 }

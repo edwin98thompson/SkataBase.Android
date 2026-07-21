@@ -158,23 +158,36 @@ class BLEManager(private val context: Context) {
         }
 
         @Deprecated("Deprecated in Java")
-        override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
             if (characteristic.uuid == CHARACTERISTIC_UUID) {
+
                 val data = characteristic.value
 
-                if (data.size >= 20) {
-                    val buffer = ByteBuffer.wrap(data)
-                    buffer.order(ByteOrder.LITTLE_ENDIAN)  // ESP32 sends in little-endian
-
-                    val values = IntArray(10) { buffer.short.toInt() }  // short = int16
-
-                    Log.d("BLEManager", "Received IMU data: ${values.joinToString(", ")}")
-
-                    _incomingMessages.value = values
-
-                } else {
+                // 10 x int16_t = 20 bytes
+                if (data.size != 20) {
                     Log.e("BLEManager", "Invalid data length: ${data.size}")
+                    return
                 }
+
+                val buffer = ByteBuffer
+                    .wrap(data)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+
+                val values = IntArray(10)
+
+                for (i in values.indices) {
+                    values[i] = buffer.short.toInt()
+                }
+
+                Log.d(
+                    "BLEManager",
+                    "Received IMU data: ${values[0]}, ${values[1]}, ${values[2]}"
+                )
+
+                _incomingMessages.value = values
             }
         }
     }

@@ -3,12 +3,14 @@ package com.example.myfirstapp.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.example.myfirstapp.viewmodel.OrientationViewModel
 
 @Composable
@@ -17,20 +19,28 @@ fun OrientationScreen(
 ) {
 
     val connectionState by viewModel.connectionState.collectAsState()
-    val orientation by viewModel.orientation.collectAsState(null)
+    val orientation by viewModel.orientation.collectAsState()
+    val history by viewModel.history.collectAsState()
 
     Text("Connection State: ${connectionState.javaClass.simpleName}")
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        Text("Roll: ${orientation?.roll}")
+        Text("Roll: %.2f".format(orientation.roll))
+        Text("Pitch: %.2f".format(orientation.pitch))
+        Text("Yaw: %.2f".format(orientation.yaw))
 
-        Text("Pitch: ${orientation?.pitch}")
 
-        Text("Yaw: ${orientation?.yaw}")
+        IMUPlotter(
+            data = history,
+            modifier = Modifier.weight(1f)
+        )
     }
 }

@@ -184,7 +184,9 @@ class BLEManager(private val context: Context) {
 
                 Log.d(
                     "BLEManager",
-                    "Received IMU data: ${values[0]}, ${values[1]}, ${values[2]}"
+                    "Received IMU data: ${values[0]}, ${values[1]}, ${values[2]}, ${values[3]}, " +
+                            "${values[4]}, ${values[5]}, ${values[6]}, ${values[7]}, ${values[8]}, " +
+                             "${values[9]}"
                 )
 
                 _incomingMessages.value = values

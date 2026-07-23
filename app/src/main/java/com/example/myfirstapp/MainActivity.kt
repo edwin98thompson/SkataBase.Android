@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -21,6 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.myfirstapp.ble.BLEManager
 import com.example.myfirstapp.repository.BluetoothRepository
+import com.example.myfirstapp.screens.AnimationScreen
 import com.example.myfirstapp.screens.BLEScannerScreen
 import com.example.myfirstapp.screens.OrientationScreen
 import com.example.myfirstapp.ui.theme.MyFirstAppTheme
@@ -50,7 +52,8 @@ class MainActivity : ComponentActivity() {
                 // Define the tabs
                 val items = listOf(
                     Screen.Scanner,
-                    Screen.Orientation
+                    Screen.Orientation,
+                    Screen.Animation
                 )
 
                 Scaffold(
@@ -110,6 +113,13 @@ class MainActivity : ComponentActivity() {
                                 )
                                 OrientationScreen(viewModel = orientationViewModel)
                             }
+
+                            composable(Screen.Animation.route) {
+                                val orientationViewModel: OrientationViewModel = viewModel(
+                                    factory = OrientationViewModelFactory(repository)
+                                )
+                                AnimationScreen(viewModel = orientationViewModel)
+                            }
                         }
                     }
                 }
@@ -134,4 +144,5 @@ class MainActivity : ComponentActivity() {
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Scanner : Screen("scanner", "Scanner", Icons.Default.List)
     object Orientation : Screen("orientation", "Orientation", Icons.Default.Place)
+    object Animation : Screen("animation", "Orientation", Icons.Default.ShoppingCart)
 }

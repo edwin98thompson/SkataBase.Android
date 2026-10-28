@@ -13,6 +13,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import com.example.myfirstapp.model.BLEDevice
 import com.example.myfirstapp.model.ConnectionState
+import com.example.myfirstapp.model.IMUPacket
+import com.example.myfirstapp.model.IMUPacketDecoder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
@@ -23,9 +25,6 @@ class BLEManager(private val context: Context) {
     var isScanning = mutableStateOf(false)
         private set
 
-    private val SERVICE_UUID = java.util.UUID.fromString("12345678-1234-1234-1234-1234567890ab")
-    private val CHARACTERISTIC_UUID = java.util.UUID.fromString("abcd1234-ab12-cd34-ef56-abcdef123456")
-
     private val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val scanner: BluetoothLeScanner? get() = bluetoothAdapter.bluetoothLeScanner
@@ -34,7 +33,7 @@ class BLEManager(private val context: Context) {
     private val scanResults = mutableMapOf<String, BLEDevice>()
 
     private val _incomingMessages =
-        MutableStateFlow<IntArray?>(null)
+        MutableStateFlow<IMUPacket?>(null)
 
     val incomingMessages =
         _incomingMessages.asStateFlow()
@@ -124,9 +123,14 @@ class BLEManager(private val context: Context) {
             if (newState == BluetoothProfile.STATE_CONNECTED &&
                 ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
             ) {
+//                this@BLEManager.gatt = gatt
+//                gatt.requestMtu(247)
+//                gatt.discoverServices()
+//                _connectionState.value = ConnectionState.Connected
+
                 this@BLEManager.gatt = gatt
-                gatt.discoverServices()
-                _connectionState.value = ConnectionState.Connected
+                Log.d("BLEManager", "Connected, requesting MTU...")
+                gatt.requestMtu(247)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 _connectionState.value = ConnectionState.Disconnected
             }
@@ -134,9 +138,9 @@ class BLEManager(private val context: Context) {
 
         @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            val service = gatt.getService(SERVICE_UUID)
+            val service = gatt.getService(BLEConstants.SERVICE_UUID)
             if (service != null) {
-                val characteristic = service.getCharacteristic(CHARACTERISTIC_UUID)
+                val characteristic = service.getCharacteristic(BLEConstants.IMU_CHARACTERISTIC_UUID)
                 if (characteristic != null) {
                     gatt.setCharacteristicNotification(characteristic, true)
 
@@ -157,41 +161,61 @@ class BLEManager(private val context: Context) {
             }
         }
 
+        @SuppressLint("MissingPermission")
+        override fun onMtuChanged(
+            gatt: BluetoothGatt,
+            mtu: Int,
+            status: Int
+        ) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+
+                Log.d("BLEManager", "MTU negotiated: $mtu bytes")
+
+            } else {
+
+                Log.w("BLEManager", "MTU request failed, using default")
+            }
+
+            // Continue with normal connection
+            gatt.discoverServices()
+
+            _connectionState.value = ConnectionState.Connected
+        }
+
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-            if (characteristic.uuid == CHARACTERISTIC_UUID) {
+            if (characteristic.uuid == BLEConstants.IMU_CHARACTERISTIC_UUID) {
 
                 val data = characteristic.value
 
-                // 10 x int16_t = 20 bytes
-                if (data.size != 20) {
-                    Log.e("BLEManager", "Invalid data length: ${data.size}")
+                val packet = IMUPacketDecoder.decode(data)
+
+                if (packet == null)
+                {
+                    Log.e(
+                        "BLEManager",
+                        "Failed to decode IMU packet: ${data.size} bytes"
+                    )
                     return
-                }
-
-                val buffer = ByteBuffer
-                    .wrap(data)
-                    .order(ByteOrder.LITTLE_ENDIAN)
-
-                val values = IntArray(10)
-
-                for (i in values.indices) {
-                    values[i] = buffer.short.toInt()
                 }
 
                 Log.d(
                     "BLEManager",
-                    "Received IMU data: ${values[0]}, ${values[1]}, ${values[2]}, ${values[3]}, " +
-                            "${values[4]}, ${values[5]}, ${values[6]}, ${values[7]}, ${values[8]}, " +
-                             "${values[9]}"
+                    "Seq=${packet.sequence}, " +
+                            "Roll=${packet.roll}, " +
+                            "Pitch=${packet.pitch}, " +
+                            "Yaw=${packet.yaw}, " +
+                            "Accel=(${packet.accelX}, ${packet.accelY}, ${packet.accelZ}), " +
+                            "Gyro=(${packet.gyroX}, ${packet.gyroY}, ${packet.gyroZ})"
                 )
 
-                _incomingMessages.value = values
+                _incomingMessages.value = packet
             }
         }
+
     }
 
     fun disconnect() {
@@ -201,4 +225,31 @@ class BLEManager(private val context: Context) {
             _connectionState.value = ConnectionState.Disconnected
         }
     }
+}
+
+fun debugImuPacket(data: ByteArray) {
+    if (data.size != 76) {
+        Log.e("IMU_BLE", "Invalid packet size: ${data.size}")
+        return
+    }
+
+    val buffer = ByteBuffer
+        .wrap(data)
+        .order(ByteOrder.LITTLE_ENDIAN)
+
+    val version = buffer.get().toInt() and 0xFF
+    val sequence = buffer.short.toInt() and 0xFFFF
+    val timestamp = buffer.int.toLong() and 0xFFFFFFFFL
+
+    val roll = buffer.float
+    val pitch = buffer.float
+    val yaw = buffer.float
+
+    Log.d(
+        "IMU_BLE",
+        "Version=$version, Seq=$sequence, Time=${timestamp}ms, " +
+                "Roll=%.2f°, Pitch=%.2f°, Yaw=%.2f°".format(
+                    roll, pitch, yaw
+                )
+    )
 }

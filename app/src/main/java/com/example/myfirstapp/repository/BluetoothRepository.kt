@@ -5,6 +5,7 @@ import androidx.compose.runtime.MutableState
 import com.example.myfirstapp.ble.BLEManager
 import com.example.myfirstapp.model.BLEDevice
 import com.example.myfirstapp.model.ConnectionState
+import com.example.myfirstapp.model.IMUPacket
 import com.example.myfirstapp.model.Orientation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,15 +38,15 @@ class BluetoothRepository(
             .filterNotNull()
             .map(::parseOrientation)
 
-    private fun parseOrientation(message: IntArray): Orientation {
+    private fun parseOrientation(message: IMUPacket): Orientation {
         return Orientation(
-            roll = message[0] / 100f,
-            pitch = message[1] / 100f,
-            yaw = normalizeYaw(message[2] / 100f),
-            q0 = message[3] / 10000f,
-            q1 = message[4] / 10000f,
-            q2 = message[5] / 10000f,
-            q3 = message[6] / 10000f
+            roll = message.roll,
+            pitch = message.pitch,
+            yaw = normalizeYaw(message.yaw),
+            q0 = message.q0,
+            q1 = message.q1,
+            q2 = message.q2,
+            q3 = message.q3
         )
     }
 

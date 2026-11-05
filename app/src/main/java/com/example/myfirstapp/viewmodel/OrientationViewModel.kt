@@ -2,18 +2,24 @@ package com.example.myfirstapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myfirstapp.model.ConnectionState
 import com.example.myfirstapp.model.Orientation
 import com.example.myfirstapp.model.OrientationDataPoint
 import com.example.myfirstapp.repository.BluetoothRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Collections.emptyList
 
 class OrientationViewModel(
-    repository: BluetoothRepository
+    private val repository: BluetoothRepository
 ) : ViewModel() {
 
     val connectionState = repository.connectionState
+
+//    fun sendMessage(command: String) {
+//        repository.sendMessage(command)
+//    }
 
     private val _orientation =
         MutableStateFlow(
@@ -29,6 +35,19 @@ class OrientationViewModel(
         )
 
     val orientation = _orientation.asStateFlow()
+
+    private val _magCalibrationStatus = MutableStateFlow("Ready")
+    val magCalibrationStatus = _magCalibrationStatus.asStateFlow()
+
+    fun startMagnetometerCalibration() {
+        if (connectionState.value !is ConnectionState.Connected) {
+            _magCalibrationStatus.value =
+                "Connect to the ESP32 before calibrating."
+            return
+        }
+
+        repository.sendMessage("CALIBRATE_MAG")
+    }
 
     private val historyBuffer = ArrayDeque<OrientationDataPoint>()
 

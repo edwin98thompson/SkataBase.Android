@@ -1,9 +1,12 @@
 package com.example.myfirstapp.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -42,5 +45,14 @@ fun OrientationScreen(
             data = history,
             modifier = Modifier.weight(1f)
         )
+
+        Button(
+            onClick = {
+                Log.d("OrientationScreen","Starting magnetic calibration")
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Start Magnetic Calibration")
+        }
     }
 }

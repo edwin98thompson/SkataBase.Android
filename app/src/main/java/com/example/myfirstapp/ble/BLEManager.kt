@@ -6,6 +6,7 @@ import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -205,6 +206,7 @@ class BLEManager(private val context: Context) {
                 Log.d(
                     "BLEManager",
                     "Seq=${packet.sequence}, " +
+                            "timestamp=${packet.timestampMs}ms, " +
                             "Roll=${packet.roll}, " +
                             "Pitch=${packet.pitch}, " +
                             "Yaw=${packet.yaw}, " +
@@ -223,6 +225,36 @@ class BLEManager(private val context: Context) {
             gatt?.close()
             gatt = null
             _connectionState.value = ConnectionState.Disconnected
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun sendMessage(message: String) {
+        val currentGatt = gatt ?: run {
+            Log.w("BLEManager", "Gatt is null, cannot send message")
+            return
+        }
+
+        val service = currentGatt.getService(BLEConstants.SERVICE_UUID)
+        val characteristic = service?.getCharacteristic(BLEConstants.IMU_CHARACTERISTIC_UUID)
+
+        if (characteristic != null) {
+            val bytes = message.encodeToByteArray()
+
+            // Use the appropriate write type for your device (DEFAULT or NO_RESPONSE)
+            val writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                currentGatt.writeCharacteristic(characteristic, bytes, writeType)
+            } else {
+                // Legacy support for older Android versions
+                characteristic.value = bytes
+                characteristic.writeType = writeType
+                currentGatt.writeCharacteristic(characteristic)
+            }
+            Log.d("BLEManager", "Sent message: $message")
+        } else {
+            Log.e("BLEManager", "Write characteristic not found")
         }
     }
 }

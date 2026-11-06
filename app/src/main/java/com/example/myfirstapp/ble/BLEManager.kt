@@ -16,7 +16,10 @@ import com.example.myfirstapp.model.BLEDevice
 import com.example.myfirstapp.model.ConnectionState
 import com.example.myfirstapp.model.IMUPacket
 import com.example.myfirstapp.model.IMUPacketDecoder
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -33,11 +36,18 @@ class BLEManager(private val context: Context) {
     private val handler = Handler(Looper.getMainLooper())
     private val scanResults = mutableMapOf<String, BLEDevice>()
 
-    private val _incomingMessages =
-        MutableStateFlow<IMUPacket?>(null)
+//    private val _incomingMessages =
+//        MutableStateFlow<IMUPacket?>(null)
+//
+//    val incomingMessages =
+//        _incomingMessages.asStateFlow()
 
-    val incomingMessages =
-        _incomingMessages.asStateFlow()
+    private val _incomingMessages = MutableSharedFlow<IMUPacket>(
+        replay = 0,
+        extraBufferCapacity = 128,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val incomingMessages = _incomingMessages.asSharedFlow()
 
     private val _connectionState =
         MutableStateFlow<ConnectionState>(
@@ -211,10 +221,12 @@ class BLEManager(private val context: Context) {
                             "Pitch=${packet.pitch}, " +
                             "Yaw=${packet.yaw}, " +
                             "Accel=(${packet.accelX}, ${packet.accelY}, ${packet.accelZ}), " +
-                            "Gyro=(${packet.gyroX}, ${packet.gyroY}, ${packet.gyroZ})"
+                            "Gyro=(${packet.gyroX}, ${packet.gyroY}, ${packet.gyroZ})," +
+                            "Magx=(${packet.magX}, Magy=${packet.magY}, Magz=${packet.magZ}" +
+                            "calibrationStatus=(${packet.calibrationStatus}"
                 )
 
-                _incomingMessages.value = packet
+                _incomingMessages.tryEmit(packet)
             }
         }
 
@@ -260,7 +272,7 @@ class BLEManager(private val context: Context) {
 }
 
 fun debugImuPacket(data: ByteArray) {
-    if (data.size != 76) {
+    if (data.size != 77) {
         Log.e("IMU_BLE", "Invalid packet size: ${data.size}")
         return
     }

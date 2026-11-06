@@ -5,7 +5,7 @@ import java.nio.ByteOrder
 
 object IMUPacketDecoder {
 
-    const val PACKET_SIZE = 76
+    const val PACKET_SIZE = 77
 
     fun decode(data: ByteArray): IMUPacket? {
         if (data.size != PACKET_SIZE) {
@@ -44,6 +44,7 @@ object IMUPacketDecoder {
 
             val temperatureC = buffer.float
             val batteryPercent = buffer.get().toInt() and 0xFF
+            val calibrationStatus = buffer.get().toInt() and 0xFF
 
             IMUPacket(
                 protocolVersion = protocolVersion,
@@ -66,7 +67,8 @@ object IMUPacketDecoder {
                 q2 = q2,
                 q3 = q3,
                 temperatureC = temperatureC,
-                batteryPercent = batteryPercent
+                batteryPercent = batteryPercent,
+                calibrationStatus = calibrationStatus
             )
         } catch (e: Exception) {
             null

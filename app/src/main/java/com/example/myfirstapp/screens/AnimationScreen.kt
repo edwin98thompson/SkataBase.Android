@@ -122,7 +122,7 @@ fun AnimationScreen(
 
     LaunchedEffect(orientation) {
 
-        orientation?.let {
+        orientation.let {
 
             val imuQuaternion = Quaternion(
                 it.q1,

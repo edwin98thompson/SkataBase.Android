@@ -36,6 +36,8 @@ class BluetoothRepository(
     fun disconnect() =
         bluetoothManager.disconnect()
 
+    val imuPacketFlow: Flow<IMUPacket> = bluetoothManager.incomingMessages
+
     val orientationFlow: Flow<Orientation> =
         bluetoothManager.incomingMessages
             .filterNotNull()

@@ -10,7 +10,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,10 +32,10 @@ import com.example.myfirstapp.screens.AnimationScreen
 import com.example.myfirstapp.screens.BLEScannerScreen
 import com.example.myfirstapp.screens.OrientationScreen
 import com.example.myfirstapp.ui.theme.MyFirstAppTheme
-import com.example.myfirstapp.viewmodel.ScannerViewModel
-import com.example.myfirstapp.viewmodel.ScannerViewModelFactory
 import com.example.myfirstapp.viewmodel.OrientationViewModel
 import com.example.myfirstapp.viewmodel.OrientationViewModelFactory
+import com.example.myfirstapp.viewmodel.ScannerViewModel
+import com.example.myfirstapp.viewmodel.ScannerViewModelFactory
 
 class MainActivity : ComponentActivity() {
 

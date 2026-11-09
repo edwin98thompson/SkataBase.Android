@@ -3,16 +3,11 @@ package com.example.myfirstapp.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myfirstapp.model.ConnectionState
 import com.example.myfirstapp.model.Orientation
 import com.example.myfirstapp.model.OrientationDataPoint
 import com.example.myfirstapp.repository.BluetoothRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Collections.emptyList
 

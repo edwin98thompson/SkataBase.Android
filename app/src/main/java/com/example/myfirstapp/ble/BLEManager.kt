@@ -22,6 +22,8 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import com.example.myfirstapp.model.BLEDevice
+import com.example.myfirstapp.model.CommandPacket
+import com.example.myfirstapp.model.CommandPacketEncoder
 import com.example.myfirstapp.model.ConnectionState
 import com.example.myfirstapp.model.IMUPacket
 import com.example.myfirstapp.model.IMUPacketDecoder
@@ -43,12 +45,6 @@ class BLEManager(private val context: Context) {
     private var gatt: BluetoothGatt? = null
     private val handler = Handler(Looper.getMainLooper())
     private val scanResults = mutableMapOf<String, BLEDevice>()
-
-//    private val _incomingMessages =
-//        MutableStateFlow<IMUPacket?>(null)
-//
-//    val incomingMessages =
-//        _incomingMessages.asStateFlow()
 
     private val _incomingMessages = MutableSharedFlow<IMUPacket>(
         replay = 0,
@@ -142,11 +138,6 @@ class BLEManager(private val context: Context) {
             if (newState == BluetoothProfile.STATE_CONNECTED &&
                 ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
             ) {
-//                this@BLEManager.gatt = gatt
-//                gatt.requestMtu(247)
-//                gatt.discoverServices()
-//                _connectionState.value = ConnectionState.Connected
-
                 this@BLEManager.gatt = gatt
                 Log.d("BLEManager", "Connected, requesting MTU...")
                 gatt.requestMtu(247)
@@ -201,6 +192,20 @@ class BLEManager(private val context: Context) {
             _connectionState.value = ConnectionState.Connected
         }
 
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            if (characteristic.uuid == BLEConstants.IMU_CHARACTERISTIC_UUID) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d("BLEManager", "BLE characteristic write completed successfully")
+                } else {
+                    Log.e("BLEManager", "BLE characteristic write failed; GATT status=$status")
+                }
+            }
+        }
+
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(
             gatt: BluetoothGatt,
@@ -209,6 +214,10 @@ class BLEManager(private val context: Context) {
             if (characteristic.uuid == BLEConstants.IMU_CHARACTERISTIC_UUID) {
 
                 val data = characteristic.value
+//                Log.d(
+//                    "BLEManager",
+//                    "Received IMU notification: ${data.size} bytes; expected ${IMUPacketDecoder.PACKET_SIZE}"
+//                )
 
                 val packet = IMUPacketDecoder.decode(data)
 
@@ -221,20 +230,10 @@ class BLEManager(private val context: Context) {
                     return
                 }
 
-                Log.d(
-                    "BLEManager",
-                    "Seq=${packet.sequence}, " +
-                            "timestamp=${packet.timestampMs}ms, " +
-                            "Roll=${packet.roll}, " +
-                            "Pitch=${packet.pitch}, " +
-                            "Yaw=${packet.yaw}, " +
-                            "Accel=(${packet.accelX}, ${packet.accelY}, ${packet.accelZ}), " +
-                            "Gyro=(${packet.gyroX}, ${packet.gyroY}, ${packet.gyroZ})," +
-                            "Magx=(${packet.magX}, Magy=${packet.magY}, Magz=${packet.magZ}" +
-                            "calibrationStatus=(${packet.calibrationStatus}"
-                )
-
-                _incomingMessages.tryEmit(packet)
+                val emitted = _incomingMessages.tryEmit(packet)
+                if (!emitted) {
+                    Log.w("BLEManager", "IMU packet was not emitted to collectors")
+                }
             }
         }
 
@@ -249,7 +248,7 @@ class BLEManager(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    fun sendMessage(message: String) {
+    fun sendMessage(message: CommandPacket) {
         val currentGatt = gatt ?: run {
             Log.w("BLEManager", "Gatt is null, cannot send message")
             return
@@ -259,20 +258,37 @@ class BLEManager(private val context: Context) {
         val characteristic = service?.getCharacteristic(BLEConstants.IMU_CHARACTERISTIC_UUID)
 
         if (characteristic != null) {
-            val bytes = message.encodeToByteArray()
 
-            // Use the appropriate write type for your device (DEFAULT or NO_RESPONSE)
+            val bytes = try {
+                CommandPacketEncoder.encode(message)
+            } catch (exception: IllegalArgumentException) {
+                Log.e("BLEManager", "Command packet encoding failed: ${exception.message}", exception)
+                return
+            }
+
+            Log.d(
+                "BLEManager",
+                "Encoded command packet (${bytes.size} bytes): ${bytes.joinToString { "%02X".format(it) }}"
+            )
+
             val writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                currentGatt.writeCharacteristic(characteristic, bytes, writeType)
+                val status = currentGatt.writeCharacteristic(characteristic, bytes, writeType)
+                if (status != android.bluetooth.BluetoothStatusCodes.SUCCESS) {
+                    Log.e("BLEManager", "BLE write could not be started; status=$status")
+                } else {
+                    Log.d("BLEManager", "BLE write started for message: $message")
+                }
             } else {
-                // Legacy support for older Android versions
                 characteristic.value = bytes
                 characteristic.writeType = writeType
-                currentGatt.writeCharacteristic(characteristic)
+                val started = currentGatt.writeCharacteristic(characteristic)
+                if (!started) {
+                    Log.e("BLEManager", "BLE write could not be started for message: $message")
+                } else {
+                    Log.d("BLEManager", "BLE write started for message: $message")
+                }
             }
-            Log.d("BLEManager", "Sent message: $message")
         } else {
             Log.e("BLEManager", "Write characteristic not found")
         }
@@ -280,7 +296,7 @@ class BLEManager(private val context: Context) {
 }
 
 fun debugImuPacket(data: ByteArray) {
-    if (data.size != 77) {
+    if (data.size != IMUPacketDecoder.PACKET_SIZE) {
         Log.e("IMU_BLE", "Invalid packet size: ${data.size}")
         return
     }

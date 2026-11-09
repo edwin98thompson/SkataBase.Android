@@ -1,11 +1,12 @@
 package com.example.myfirstapp.model
 
+import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 object IMUPacketDecoder {
 
-    const val PACKET_SIZE = 77
+    const val PACKET_SIZE = 81
 
     fun decode(data: ByteArray): IMUPacket? {
         if (data.size != PACKET_SIZE) {
@@ -45,6 +46,7 @@ object IMUPacketDecoder {
             val temperatureC = buffer.float
             val batteryPercent = buffer.get().toInt() and 0xFF
             val calibrationStatus = buffer.get().toInt() and 0xFF
+            val betaValue = buffer.float
 
             IMUPacket(
                 protocolVersion = protocolVersion,
@@ -68,9 +70,11 @@ object IMUPacketDecoder {
                 q3 = q3,
                 temperatureC = temperatureC,
                 batteryPercent = batteryPercent,
-                calibrationStatus = calibrationStatus
+                calibrationStatus = calibrationStatus,
+                betaValue = betaValue
             )
         } catch (e: Exception) {
+            Log.e("IMUPacketDecoder", "Failed to parse ${data.size}-byte IMU packet", e)
             null
         }
     }

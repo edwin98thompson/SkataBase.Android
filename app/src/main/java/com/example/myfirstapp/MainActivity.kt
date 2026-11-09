@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -30,6 +31,7 @@ import com.example.myfirstapp.ble.BLEManager
 import com.example.myfirstapp.repository.BluetoothRepository
 import com.example.myfirstapp.screens.AnimationScreen
 import com.example.myfirstapp.screens.BLEScannerScreen
+import com.example.myfirstapp.screens.CalibrationScreen
 import com.example.myfirstapp.screens.OrientationScreen
 import com.example.myfirstapp.ui.theme.MyFirstAppTheme
 import com.example.myfirstapp.viewmodel.OrientationViewModel
@@ -59,7 +61,8 @@ class MainActivity : ComponentActivity() {
                 val items = listOf(
                     Screen.Scanner,
                     Screen.Orientation,
-                    Screen.Animation
+                    Screen.Animation,
+                    Screen.Calibration
                 )
 
                 Scaffold(
@@ -126,6 +129,13 @@ class MainActivity : ComponentActivity() {
                                 )
                                 AnimationScreen(viewModel = orientationViewModel)
                             }
+
+                            composable(Screen.Calibration.route) {
+                                val orientationViewModel: OrientationViewModel = viewModel(
+                                    factory = OrientationViewModelFactory(repository)
+                                )
+                                CalibrationScreen(viewModel = orientationViewModel)
+                            }
                         }
                     }
                 }
@@ -150,5 +160,6 @@ class MainActivity : ComponentActivity() {
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Scanner : Screen("scanner", "Scanner", Icons.Default.List)
     object Orientation : Screen("orientation", "Orientation", Icons.Default.Place)
-    object Animation : Screen("animation", "Orientation", Icons.Default.ShoppingCart)
+    object Animation : Screen("animation", "Animation", Icons.Default.ShoppingCart)
+    object Calibration : Screen("Calibration", "Calibration", Icons.Default.Build)
 }

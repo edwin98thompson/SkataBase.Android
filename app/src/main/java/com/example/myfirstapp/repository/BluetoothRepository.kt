@@ -30,8 +30,13 @@ class BluetoothRepository(
     fun connect(device: BluetoothDevice) =
         bluetoothManager.connect(device)
 
+    fun sendMessage(command: String): Unit =
+        bluetoothManager.sendMessage(command)
+
     fun disconnect() =
         bluetoothManager.disconnect()
+
+    val imuPacketFlow: Flow<IMUPacket> = bluetoothManager.incomingMessages
 
     val orientationFlow: Flow<Orientation> =
         bluetoothManager.incomingMessages

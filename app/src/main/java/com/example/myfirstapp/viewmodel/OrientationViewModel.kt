@@ -1,5 +1,6 @@
 package com.example.myfirstapp.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myfirstapp.model.Orientation
@@ -8,12 +9,36 @@ import com.example.myfirstapp.repository.BluetoothRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Collections.emptyList
 
 class OrientationViewModel(
-    repository: BluetoothRepository
+    private val repository: BluetoothRepository
 ) : ViewModel() {
 
     val connectionState = repository.connectionState
+
+    private val _magCalibrationStatus = MutableStateFlow("Ready (0)")
+    val magCalibrationStatus = _magCalibrationStatus.asStateFlow()
+
+    init {
+
+        // Collect IMU packets for calibration status
+        viewModelScope.launch {
+            repository.imuPacketFlow.collect { packet ->
+                _magCalibrationStatus.value = formatCalibrationStatus(packet.calibrationStatus)
+            }
+        }
+    }
+
+    private fun formatCalibrationStatus(status: Int): String {
+        return when (status) {
+            0 -> "Uncalibrated"
+            1 -> "Calibration In Progress"
+            2 -> "Calibration Complete"
+            3 -> "Calibration Failed"
+            else -> "Status: $status"
+        }
+    }
 
     private val _orientation =
         MutableStateFlow(
@@ -29,6 +54,12 @@ class OrientationViewModel(
         )
 
     val orientation = _orientation.asStateFlow()
+
+    fun startMagnetometerCalibration() {
+        Log.d("OrientationScreen","Starting magnetic calibration")
+
+        repository.sendMessage("CALIBRATE_MAG")
+    }
 
     private val historyBuffer = ArrayDeque<OrientationDataPoint>()
 

@@ -2,10 +2,20 @@ package com.example.myfirstapp.ble
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.bluetooth.*
-import android.bluetooth.le.*
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -15,11 +25,13 @@ import com.example.myfirstapp.model.BLEDevice
 import com.example.myfirstapp.model.ConnectionState
 import com.example.myfirstapp.model.IMUPacket
 import com.example.myfirstapp.model.IMUPacketDecoder
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.text.contains
 
 class BLEManager(private val context: Context) {
     var isScanning = mutableStateOf(false)
@@ -32,11 +44,18 @@ class BLEManager(private val context: Context) {
     private val handler = Handler(Looper.getMainLooper())
     private val scanResults = mutableMapOf<String, BLEDevice>()
 
-    private val _incomingMessages =
-        MutableStateFlow<IMUPacket?>(null)
+//    private val _incomingMessages =
+//        MutableStateFlow<IMUPacket?>(null)
+//
+//    val incomingMessages =
+//        _incomingMessages.asStateFlow()
 
-    val incomingMessages =
-        _incomingMessages.asStateFlow()
+    private val _incomingMessages = MutableSharedFlow<IMUPacket>(
+        replay = 0,
+        extraBufferCapacity = 128,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val incomingMessages = _incomingMessages.asSharedFlow()
 
     private val _connectionState =
         MutableStateFlow<ConnectionState>(
@@ -205,14 +224,17 @@ class BLEManager(private val context: Context) {
                 Log.d(
                     "BLEManager",
                     "Seq=${packet.sequence}, " +
+                            "timestamp=${packet.timestampMs}ms, " +
                             "Roll=${packet.roll}, " +
                             "Pitch=${packet.pitch}, " +
                             "Yaw=${packet.yaw}, " +
                             "Accel=(${packet.accelX}, ${packet.accelY}, ${packet.accelZ}), " +
-                            "Gyro=(${packet.gyroX}, ${packet.gyroY}, ${packet.gyroZ})"
+                            "Gyro=(${packet.gyroX}, ${packet.gyroY}, ${packet.gyroZ})," +
+                            "Magx=(${packet.magX}, Magy=${packet.magY}, Magz=${packet.magZ}" +
+                            "calibrationStatus=(${packet.calibrationStatus}"
                 )
 
-                _incomingMessages.value = packet
+                _incomingMessages.tryEmit(packet)
             }
         }
 
@@ -225,10 +247,40 @@ class BLEManager(private val context: Context) {
             _connectionState.value = ConnectionState.Disconnected
         }
     }
+
+    @SuppressLint("MissingPermission")
+    fun sendMessage(message: String) {
+        val currentGatt = gatt ?: run {
+            Log.w("BLEManager", "Gatt is null, cannot send message")
+            return
+        }
+
+        val service = currentGatt.getService(BLEConstants.SERVICE_UUID)
+        val characteristic = service?.getCharacteristic(BLEConstants.IMU_CHARACTERISTIC_UUID)
+
+        if (characteristic != null) {
+            val bytes = message.encodeToByteArray()
+
+            // Use the appropriate write type for your device (DEFAULT or NO_RESPONSE)
+            val writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                currentGatt.writeCharacteristic(characteristic, bytes, writeType)
+            } else {
+                // Legacy support for older Android versions
+                characteristic.value = bytes
+                characteristic.writeType = writeType
+                currentGatt.writeCharacteristic(characteristic)
+            }
+            Log.d("BLEManager", "Sent message: $message")
+        } else {
+            Log.e("BLEManager", "Write characteristic not found")
+        }
+    }
 }
 
 fun debugImuPacket(data: ByteArray) {
-    if (data.size != 76) {
+    if (data.size != 77) {
         Log.e("IMU_BLE", "Invalid packet size: ${data.size}")
         return
     }

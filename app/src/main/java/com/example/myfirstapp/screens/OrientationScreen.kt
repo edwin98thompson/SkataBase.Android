@@ -21,7 +21,6 @@ fun OrientationScreen(
     val connectionState by viewModel.connectionState.collectAsState()
     val orientation by viewModel.orientation.collectAsState()
     val history by viewModel.history.collectAsState()
-    val magCalStatus by viewModel.magCalibrationStatus.collectAsState()
 
     Text("Connection State: ${connectionState.javaClass.simpleName}")
 

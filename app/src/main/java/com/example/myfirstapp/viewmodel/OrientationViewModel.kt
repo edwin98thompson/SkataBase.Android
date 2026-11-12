@@ -35,7 +35,7 @@ class OrientationViewModel(
     // 2. Beta value state stream
     val betaValue: StateFlow<Float> = repository.imuPacketFlow
         .map { packet -> packet.betaValue }
-        .onEach { value -> Log.d("OrientationViewModel", "Received beta value from BLE flow: $value") }
+//        .onEach { value -> Log.d("OrientationViewModel", "Received beta value from BLE flow: $value") }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -59,18 +59,6 @@ class OrientationViewModel(
             initialValue = Orientation(0f, 0f, 0f, 0f, 0f, 0f, 0f)
         )
 
-    fun startMagnetometerCalibration() {
-        Log.d("OrientationScreen", "Starting magnetic calibration")
-
-        val message = CommandPacket(
-            protocolVersion = 1,
-            commandId = CommandId.CMD_START_MAGNETOMETER_CALIBRATION,
-            betaValue = 0f
-        )
-
-        repository.sendMessage(message)
-    }
-
     fun updateBetaValue(betaValue: Float) {
         Log.d("OrientationViewModel", "Sending beta value to BLE: $betaValue")
 
@@ -78,6 +66,78 @@ class OrientationViewModel(
             protocolVersion = 1,
             commandId = CommandId.CMD_SET_BETA_VALUE,
             betaValue = betaValue
+        )
+
+        repository.sendMessage(message)
+    }
+
+    fun startGyroCalibration() {
+        Log.d("OrientationViewModel", "Triggering gyro calibration")
+
+        val message = CommandPacket(
+            protocolVersion = 1,
+            commandId = CommandId.CMD_START_GYROSCOPE_CALIBRATION,
+            betaValue = 0f
+        )
+
+        repository.sendMessage(message)
+    }
+
+    fun toggleGyroscopeCalibration(apply: Boolean) {
+        Log.d("OrientationViewModel", "Toggling gyro calibration: $apply")
+
+        val command = if (apply) {
+            CommandId.CMD_ENABLE_GYROSCOPE_CALIBRATION
+        } else {
+            CommandId.CMD_DISABLE_GYROSCOPE_CALIBRATION
+        }
+
+        val message = CommandPacket(
+            protocolVersion = 1,
+            commandId = command,
+            betaValue = 0f
+        )
+
+        repository.sendMessage(message)
+    }
+
+    fun startAccelCalibration() {
+        Log.d("OrientationViewModel", "Triggering accel calibration")
+
+        val message = CommandPacket(
+            protocolVersion = 1,
+            commandId = CommandId.CMD_START_ACCELEROMETER_CALIBRATION,
+            betaValue = 0f
+        )
+
+        repository.sendMessage(message)
+    }
+
+    fun toggleAccelCalibration(apply: Boolean) {
+        Log.d("OrientationViewModel", "Toggling accel calibration: $apply")
+
+        val command = if (apply) {
+            CommandId.CMD_ENABLE_ACCELEROMETER_CALIBRATION
+        } else {
+            CommandId.CMD_DISABLE_ACCELEROMETER_CALIBRATION
+        }
+
+        val message = CommandPacket(
+            protocolVersion = 1,
+            commandId = command,
+            betaValue = 0f
+        )
+
+        repository.sendMessage(message)
+    }
+
+    fun startMagnetometerCalibration() {
+        Log.d("OrientationScreen", "Starting magnetic calibration")
+
+        val message = CommandPacket(
+            protocolVersion = 1,
+            commandId = CommandId.CMD_START_MAGNETOMETER_CALIBRATION,
+            betaValue = 0f
         )
 
         repository.sendMessage(message)

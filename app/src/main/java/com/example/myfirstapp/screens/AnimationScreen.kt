@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,6 +17,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.example.myfirstapp.recorder.MotionRecorder
+import com.example.myfirstapp.recorder.RecordingState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +37,17 @@ fun AnimationScreen(
     viewModel: OrientationViewModel
 ) {
     val orientation by viewModel.orientation.collectAsState()
+    val context = LocalContext.current
+    val recorder = remember(context) { MotionRecorder(context.applicationContext) }
+    val recordingState by recorder.recordingState.collectAsState()
+
+    DisposableEffect(recorder) {
+        onDispose {
+            if (recorder.recordingState.value is RecordingState.Recording) {
+                recorder.stopRecording()
+            }
+        }
+    }
 
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
@@ -89,6 +104,39 @@ fun AnimationScreen(
             }
         )
 
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            when (val state = recordingState) {
+                RecordingState.Idle, is RecordingState.Completed, is RecordingState.Error -> {
+                    Button(onClick = { recorder.startRecording(viewModel.imuPacketFlow) }) {
+                        Text("Start Recording")
+                    }
+                }
+                is RecordingState.Recording -> {
+                    Button(onClick = recorder::stopRecording) {
+                        Text("Stop Recording")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Recording: ${state.sampleCount} samples")
+                }
+            }
+        }
+
+        when (val state = recordingState) {
+            is RecordingState.Completed -> Text(
+                text = "Saved ${state.totalSamples} samples to ${state.uri.lastPathSegment}",
+                modifier = Modifier.align(Alignment.TopCenter).padding(16.dp)
+            )
+            is RecordingState.Error -> Text(
+                text = "Recording failed: ${state.message}",
+                modifier = Modifier.align(Alignment.TopCenter).padding(16.dp)
+            )
+            else -> Unit
+        }
 
         // Offset controls
 //        Column(

@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myfirstapp.model.Orientation
 import com.example.myfirstapp.model.OrientationDataPoint
+import com.example.myfirstapp.model.IMUPacket
 import com.example.myfirstapp.repository.BluetoothRepository
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,7 @@ class OrientationViewModel(
 ) : ViewModel() {
 
     val connectionState = repository.connectionState
+    val imuPacketFlow: Flow<IMUPacket> = repository.imuPacketFlow
 
     // 3. History buffer and state flow
     private val historyBuffer = ArrayDeque<OrientationDataPoint>()

@@ -1,6 +1,10 @@
 package com.example.myfirstapp.recorder
 
+import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
 import com.example.myfirstapp.model.IMUPacket
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -13,8 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.BufferedWriter
-import java.io.File
-import java.io.FileWriter
+import java.io.OutputStreamWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -28,6 +31,8 @@ class MotionRecorder(
 
     private var recordingJob: Job? = null
     private var writer: BufferedWriter? = null
+    private var outputUri: Uri? = null
+    @Volatile private var samplesWritten = 0
 
     companion object {
         private const val CSV_HEADER =
@@ -39,34 +44,38 @@ class MotionRecorder(
         if (_recordingState.value is RecordingState.Recording) return
 
         recordingJob = coroutineScope.launch {
+            var insertedUri: Uri? = null
             try {
-                val file = createOutputFile()
-                val bufferedWriter = BufferedWriter(FileWriter(file), 8192) // 8KB buffer
+                val uri = createOutputUri()
+                insertedUri = uri
+                outputUri = uri
+
+                val outputStream = context.contentResolver.openOutputStream(uri, "w")
+                    ?: error("Unable to open the recording file")
+                val bufferedWriter = BufferedWriter(OutputStreamWriter(outputStream), 8192)
                 writer = bufferedWriter
 
-                // Write CSV Header
                 bufferedWriter.write(CSV_HEADER)
                 bufferedWriter.newLine()
 
                 val startTime = System.currentTimeMillis()
-                var sampleCount = 0
-                _recordingState.value = RecordingState.Recording(file, startTime, sampleCount)
+                samplesWritten = 0
+                _recordingState.value = RecordingState.Recording(uri, startTime, samplesWritten)
 
                 packetFlow.collect { packet ->
-                    val line = packetToCsv(packet)
-                    bufferedWriter.write(line)
+                    bufferedWriter.write(packetToCsv(packet))
                     bufferedWriter.newLine()
 
-                    sampleCount++
-                    // Flush every 50 samples to prevent data loss without throttling I/O
-                    if (sampleCount % 50 == 0) {
+                    samplesWritten++
+                    if (samplesWritten % 50 == 0) {
                         bufferedWriter.flush()
-                        _recordingState.value = RecordingState.Recording(file, startTime, sampleCount)
+                        _recordingState.value = RecordingState.Recording(uri, startTime, samplesWritten)
                     }
                 }
             } catch (e: CancellationException) {
-                // Expected when stopping
+                throw e
             } catch (e: Exception) {
+                insertedUri?.let { context.contentResolver.delete(it, null, null) }
                 _recordingState.value = RecordingState.Error(e.message ?: "Failed to write file")
             } finally {
                 closeWriter()
@@ -79,12 +88,13 @@ class MotionRecorder(
         recordingJob?.cancel()
         recordingJob = null
         closeWriter()
+        publishOutput()
 
         if (currentState is RecordingState.Recording) {
             val duration = System.currentTimeMillis() - currentState.startTimeMs
             _recordingState.value = RecordingState.Completed(
-                file = currentState.file,
-                totalSamples = currentState.sampleCount,
+                uri = currentState.uri,
+                totalSamples = samplesWritten,
                 durationMs = duration
             )
         } else {
@@ -96,17 +106,37 @@ class MotionRecorder(
         try {
             writer?.flush()
             writer?.close()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         writer = null
     }
 
-    private fun createOutputFile(): File {
-        // App-specific external storage (No permissions needed on Android 10+ / API 29+)
-        val dir = context.getExternalFilesDir("recordings") ?: context.filesDir
-        if (!dir.exists()) dir.mkdirs()
+    private fun publishOutput() {
+        outputUri?.let { uri ->
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            context.contentResolver.update(uri, values, null, null)
+        }
+        outputUri = null
+    }
 
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        return File(dir, "imu_motion_$timeStamp.csv")
+    private fun createOutputUri(): Uri {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "imu_motion_$timestamp.csv")
+            put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+            put(
+                MediaStore.MediaColumns.RELATIVE_PATH,
+                Environment.DIRECTORY_DOWNLOADS + "/recordings"
+            )
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+
+        return context.contentResolver.insert(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            values
+        ) ?: error("Unable to create the recording file")
     }
 
     private fun packetToCsv(p: IMUPacket): String {

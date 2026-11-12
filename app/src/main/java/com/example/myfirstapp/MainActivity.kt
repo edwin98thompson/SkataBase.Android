@@ -153,7 +153,13 @@ class MainActivity : ComponentActivity() {
         )
         val permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
-        ) { _ -> }
+        ) { grants ->
+            val canScan = grants[Manifest.permission.BLUETOOTH_SCAN] == true
+            val canConnect = grants[Manifest.permission.BLUETOOTH_CONNECT] == true
+            if (canScan && canConnect) {
+                bleManager.startAutoConnect()
+            }
+        }
         permissionLauncher.launch(permissions)
     }
 }

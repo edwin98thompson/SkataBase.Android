@@ -7,8 +7,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
@@ -34,6 +34,8 @@ import com.example.myfirstapp.screens.BLEScannerScreen
 import com.example.myfirstapp.screens.CalibrationScreen
 import com.example.myfirstapp.screens.OrientationScreen
 import com.example.myfirstapp.ui.theme.MyFirstAppTheme
+import com.example.myfirstapp.viewmodel.CalibrationViewModel
+import com.example.myfirstapp.viewmodel.CalibrationViewModelFactory
 import com.example.myfirstapp.viewmodel.OrientationViewModel
 import com.example.myfirstapp.viewmodel.OrientationViewModelFactory
 import com.example.myfirstapp.viewmodel.ScannerViewModel
@@ -131,10 +133,10 @@ class MainActivity : ComponentActivity() {
                             }
 
                             composable(Screen.Calibration.route) {
-                                val orientationViewModel: OrientationViewModel = viewModel(
-                                    factory = OrientationViewModelFactory(repository)
+                                val calibrationViewModel: CalibrationViewModel = viewModel(
+                                    factory = CalibrationViewModelFactory(repository)
                                 )
-                                CalibrationScreen(viewModel = orientationViewModel)
+                                CalibrationScreen(viewModel = calibrationViewModel)
                             }
                         }
                     }
@@ -158,7 +160,7 @@ class MainActivity : ComponentActivity() {
 
 // Helper class to manage screen routes and icons
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    object Scanner : Screen("scanner", "Scanner", Icons.Default.List)
+    object Scanner : Screen("scanner", "Scanner", Icons.AutoMirrored.Filled.List)
     object Orientation : Screen("orientation", "Orientation", Icons.Default.Place)
     object Animation : Screen("animation", "Animation", Icons.Default.ShoppingCart)
     object Calibration : Screen("Calibration", "Calibration", Icons.Default.Build)

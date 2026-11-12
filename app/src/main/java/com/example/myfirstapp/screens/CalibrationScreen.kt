@@ -23,11 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.myfirstapp.model.ConnectionState
-import com.example.myfirstapp.viewmodel.OrientationViewModel
+import com.example.myfirstapp.viewmodel.CalibrationViewModel
 
 @Composable
 fun CalibrationScreen(
-    viewModel: OrientationViewModel
+    viewModel: CalibrationViewModel
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
     val magCalStatus by viewModel.magCalibrationStatus.collectAsState()

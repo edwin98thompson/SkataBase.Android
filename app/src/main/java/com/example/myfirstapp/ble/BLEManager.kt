@@ -97,15 +97,16 @@ class BLEManager(private val context: Context) {
         }
 
         override fun onScanFailed(errorCode: Int) {
+            autoConnectOnScan = false
             isScanning.value = false
             _connectionState.value = ConnectionState.Error("Scan failed with code $errorCode")
         }
     }
 
     fun startAutoConnect() {
-        if (_connectionState.value is ConnectionState.Connected || isScanning.value) return
+        if (_connectionState.value is ConnectionState.Connected) return
         autoConnectOnScan = true
-        startScan()
+        if (!isScanning.value) startScan()
     }
 
     fun startScan() {

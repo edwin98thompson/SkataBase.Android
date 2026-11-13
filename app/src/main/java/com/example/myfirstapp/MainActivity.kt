@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import com.example.myfirstapp.screens.AnimationScreen
 import com.example.myfirstapp.screens.BLEScannerScreen
 import com.example.myfirstapp.screens.CalibrationScreen
 import com.example.myfirstapp.screens.OrientationScreen
+import com.example.myfirstapp.screens.TrainingScreen
 import com.example.myfirstapp.ui.theme.MyFirstAppTheme
 import com.example.myfirstapp.viewmodel.CalibrationViewModel
 import com.example.myfirstapp.viewmodel.CalibrationViewModelFactory
@@ -49,9 +51,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize core logic
-        bleManager = BLEManager(applicationContext)
-        repository = BluetoothRepository(bleManager)
+        // Keep one BLE manager shared by the activity and background services.
+        AppGraph.initialize(applicationContext)
+        bleManager = AppGraph.bleManager
+        repository = AppGraph.repository
 
         requestBluetoothPermissions()
 
@@ -64,7 +67,8 @@ class MainActivity : ComponentActivity() {
                     Screen.Scanner,
                     Screen.Orientation,
                     Screen.Animation,
-                    Screen.Calibration
+                    Screen.Calibration,
+                    Screen.Training
                 )
 
                 Scaffold(
@@ -138,6 +142,10 @@ class MainActivity : ComponentActivity() {
                                 )
                                 CalibrationScreen(viewModel = calibrationViewModel)
                             }
+
+                            composable(Screen.Training.route) {
+                                TrainingScreen()
+                            }
                         }
                     }
                 }
@@ -170,4 +178,5 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Orientation : Screen("orientation", "Orientation", Icons.Default.Place)
     object Animation : Screen("animation", "Animation", Icons.Default.ShoppingCart)
     object Calibration : Screen("Calibration", "Calibration", Icons.Default.Build)
+    object Training : Screen("training", "Training", Icons.Default.PlayArrow)
 }

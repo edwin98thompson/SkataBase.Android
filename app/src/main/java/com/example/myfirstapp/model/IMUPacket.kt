@@ -28,5 +28,7 @@ data class IMUPacket(
 
     val temperatureC: Float,
     val batteryPercent: Int,
-    val calibrationStatus: Int
+    val calibrationStatus: Int,
+
+    val betaValue: Float
 )

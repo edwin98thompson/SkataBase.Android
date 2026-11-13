@@ -47,28 +47,5 @@ fun OrientationScreen(
             modifier = Modifier.weight(1f)
         )
 
-        // Show the status above the button
-        Text(
-            text = magCalStatus,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-
-        Button(
-            enabled = connectionState == ConnectionState.Connected,
-            onClick = {
-                if(connectionState != ConnectionState.Connected)
-                {
-                    Log.d("OrientationViewModel","Device must be connected to start calibration")
-                }
-                else
-                {
-                    Log.d("OrientationScreen","Starting magnetic calibration")
-                    viewModel.startMagnetometerCalibration();
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Start Magnetic Calibration")
-        }
     }
 }

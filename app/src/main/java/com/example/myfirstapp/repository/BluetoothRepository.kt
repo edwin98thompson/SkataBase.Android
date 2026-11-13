@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothDevice
 import androidx.compose.runtime.MutableState
 import com.example.myfirstapp.ble.BLEManager
 import com.example.myfirstapp.model.BLEDevice
+import com.example.myfirstapp.model.CommandPacket
 import com.example.myfirstapp.model.ConnectionState
 import com.example.myfirstapp.model.IMUPacket
 import com.example.myfirstapp.model.Orientation
@@ -30,7 +31,7 @@ class BluetoothRepository(
     fun connect(device: BluetoothDevice) =
         bluetoothManager.connect(device)
 
-    fun sendMessage(command: String): Unit =
+    fun sendMessage(command: CommandPacket): Unit =
         bluetoothManager.sendMessage(command)
 
     fun disconnect() =

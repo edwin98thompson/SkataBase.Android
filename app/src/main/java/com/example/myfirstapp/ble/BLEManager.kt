@@ -45,6 +45,7 @@ class BLEManager(private val context: Context) {
     private var gatt: BluetoothGatt? = null
     private val handler = Handler(Looper.getMainLooper())
     private val scanResults = mutableMapOf<String, BLEDevice>()
+    private var autoConnectOnScan = false
 
     private val _incomingMessages = MutableSharedFlow<IMUPacket>(
         replay = 0,
@@ -73,7 +74,6 @@ class BLEManager(private val context: Context) {
             val device = result.device
             val address = device.address
 
-            // Get the name, defaulting to "Unknown" if null
             val deviceName = device.name ?: "Unknown"
 
             // 2. Check if the name contains your specific string (case-insensitive)
@@ -86,6 +86,12 @@ class BLEManager(private val context: Context) {
 
                     // Update the StateFlow list for the UI
                     _devices.value = scanResults.values.toList()
+
+                    if (autoConnectOnScan) {
+                        autoConnectOnScan = false
+                        stopScan()
+                        connect(device)
+                    }
                 }
             }
         }
@@ -94,6 +100,12 @@ class BLEManager(private val context: Context) {
             isScanning.value = false
             _connectionState.value = ConnectionState.Error("Scan failed with code $errorCode")
         }
+    }
+
+    fun startAutoConnect() {
+        if (_connectionState.value is ConnectionState.Connected || isScanning.value) return
+        autoConnectOnScan = true
+        startScan()
     }
 
     fun startScan() {
@@ -121,6 +133,7 @@ class BLEManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun stopScan() {
+        autoConnectOnScan = false
         scanner?.stopScan(scanCallback)
         isScanning.value = false
         Log.d("BLEManager", "Scanning stopped")

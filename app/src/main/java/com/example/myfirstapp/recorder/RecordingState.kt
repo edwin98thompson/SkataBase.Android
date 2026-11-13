@@ -1,16 +1,16 @@
 package com.example.myfirstapp.recorder
 
-import java.io.File
+import android.net.Uri
 
 sealed interface RecordingState {
     object Idle : RecordingState
     data class Recording(
-        val file: File,
+        val uri: Uri,
         val startTimeMs: Long,
         val sampleCount: Int = 0
     ) : RecordingState
     data class Completed(
-        val file: File,
+        val uri: Uri,
         val totalSamples: Int,
         val durationMs: Long
     ) : RecordingState

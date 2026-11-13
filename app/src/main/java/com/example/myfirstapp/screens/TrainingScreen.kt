@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,7 +36,7 @@ import com.example.myfirstapp.training.TrainingService
 import com.example.myfirstapp.training.TrainingSessionState
 
 @Composable
-fun TrainingScreen() {
+fun TrainingScreen(onOpenReview: () -> Unit) {
     val context = LocalContext.current
     val state by TrainingService.sessionState.collectAsState()
     var startThresholdText by rememberSaveable { mutableStateOf("100") }
@@ -109,6 +110,9 @@ fun TrainingScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Data training", style = MaterialTheme.typography.headlineSmall)
+        OutlinedButton(onClick = onOpenReview, modifier = Modifier.fillMaxWidth()) {
+            Text("Review recorded sessions")
+        }
         Text(
             "The gyro magnitude is √(x² + y² + z²) in the units sent by the device. " +
                     "An event starts at the upper threshold and ends below the lower threshold."

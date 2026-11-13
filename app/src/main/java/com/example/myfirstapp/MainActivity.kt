@@ -33,6 +33,7 @@ import com.example.myfirstapp.repository.BluetoothRepository
 import com.example.myfirstapp.screens.AnimationScreen
 import com.example.myfirstapp.screens.BLEScannerScreen
 import com.example.myfirstapp.screens.CalibrationScreen
+import com.example.myfirstapp.screens.EventReviewScreen
 import com.example.myfirstapp.screens.OrientationScreen
 import com.example.myfirstapp.screens.TrainingScreen
 import com.example.myfirstapp.ui.theme.MyFirstAppTheme
@@ -144,7 +145,13 @@ class MainActivity : ComponentActivity() {
                             }
 
                             composable(Screen.Training.route) {
-                                TrainingScreen()
+                                TrainingScreen(
+                                    onOpenReview = { navController.navigate(Screen.EventReview.route) }
+                                )
+                            }
+
+                            composable(Screen.EventReview.route) {
+                                EventReviewScreen(onBack = { navController.popBackStack() })
                             }
                         }
                     }
@@ -179,4 +186,5 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Animation : Screen("animation", "Animation", Icons.Default.ShoppingCart)
     object Calibration : Screen("Calibration", "Calibration", Icons.Default.Build)
     object Training : Screen("training", "Training", Icons.Default.PlayArrow)
+    object EventReview : Screen("event-review", "Event Review", Icons.Default.PlayArrow)
 }

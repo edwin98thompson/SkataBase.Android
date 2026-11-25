@@ -5,7 +5,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Build
@@ -19,8 +31,13 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.example.myfirstapp.model.ConnectionState
+import kotlinx.coroutines.flow.map
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -62,6 +79,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyFirstAppTheme {
                 val navController = rememberNavController()
+                val batteryPercent by repository.imuPacketFlow
+                    .map { it.batteryPercent }
+                    .collectAsState(initial = -1)
+                val connectionState by repository.connectionState.collectAsState()
+                val displayedBatteryPercent = batteryPercent.takeIf {
+                    connectionState is ConnectionState.Connected && it in 0..100
+                }
 
                 // Define the tabs
                 val items = listOf(
@@ -73,6 +97,9 @@ class MainActivity : ComponentActivity() {
                 )
 
                 Scaffold(
+                    topBar = {
+                        BatteryStatusBar(displayedBatteryPercent)
+                    },
                     bottomBar = {
                         NavigationBar {
                             val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -176,6 +203,49 @@ class MainActivity : ComponentActivity() {
             }
         }
         permissionLauncher.launch(permissions)
+    }
+}
+
+@Composable
+private fun BatteryStatusBar(percent: Int?) {
+    val topSpacing = with(androidx.compose.ui.platform.LocalDensity.current) { 50.toDp() }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding(),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = topSpacing, end = 16.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("BLE battery", style = MaterialTheme.typography.labelLarge)
+            Box(
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .width(64.dp)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                if (percent != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(percent / 100f)
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+            Text(
+                text = percent?.let { "$it%" } ?: "—",
+                modifier = Modifier.padding(start = 8.dp),
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
     }
 }
 
